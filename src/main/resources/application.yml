@@ -49,10 +49,10 @@ spring:
               uri: lb://ms-news
               predicates:
                 - Path=/contentful/**
-            - id: news-ws
-              uri: lb://ms-news
+            - id: websocket
+              uri: lb://websocket
               predicates:
-                  - Path=/ws/**
+              - Path=/ws/**
             # Drive y Tasks services comentados hasta que estén disponibles
             # - id: drive-service
             #   uri: lb://ms-drive

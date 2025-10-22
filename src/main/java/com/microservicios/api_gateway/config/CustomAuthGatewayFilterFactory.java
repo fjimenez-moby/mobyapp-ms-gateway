@@ -45,9 +45,11 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
             HttpCookie sessionCookie = exchange.getRequest()
                     .getCookies().getFirst("JSESSIONID");
 
+
+
             if (sessionCookie == null) {
                 logger.warning("Petición rechazada: cookie JSESSIONID ausente. Usuario no autenticado.");
-                return unauthorizedResponse(exchange, "Sesión no encontrada. Por favor, inicie sesión.");
+                return unauthorizedResponse(requestPath,exchange, "Sesión no encontrada. Por favor, inicie sesión.");
             }
 
             // Extraemos el sessionId de la cookie (Spring Session lo genera automáticamente)
@@ -61,7 +63,7 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
                 logger.info("SessionId decodificado: " + sessionId);
             } catch (Exception e) {
                 logger.warning("Error al decodificar sessionId: " + e.getMessage());
-                return unauthorizedResponse(exchange, "Sesión no válida.");
+                return unauthorizedResponse(requestPath,exchange, "Sesión no válida.");
             }
 
             // Buscamos en Redis con el prefijo de Spring Session
@@ -81,7 +83,7 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
 
                         if (finalAccessToken == null || finalAccessToken.trim().isEmpty() || !finalAccessToken.startsWith("ya29.")) {
                             logger.warning("AccessToken no válido en la sesión Redis. Token: " + finalAccessToken);
-                            return unauthorizedResponse(exchange, "Token de acceso no válido en la sesión.");
+                            return unauthorizedResponse(requestPath,exchange, "Token de acceso no válido en la sesión.");
                         }
 
                         logger.info("AccessToken limpio extraído: " + (finalAccessToken.length() > 20 ? finalAccessToken.substring(0, 20) + "..." : finalAccessToken));
@@ -113,19 +115,31 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
                     })
                     .onErrorResume(error -> {
                         logger.warning("Error al procesar sesión: " + error.getMessage());
-                        return unauthorizedResponse(exchange, "Sesión no encontrada en Redis. Por favor, inicie sesión de nuevo.");
+                        return unauthorizedResponse(requestPath, exchange, "Sesión no encontrada en Redis. Por favor, inicie sesión de nuevo.");
                     });
         };
     }
 
-    private Mono<Void> unauthorizedResponse(ServerWebExchange exchange, String message) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        response.getHeaders().add("Content-Type", "application/json");
+    private Mono<Void> unauthorizedResponse(String requestPath, ServerWebExchange exchange, String message) {
 
-        String body = String.format("{\"success\": false, \"message\": \"%s\"}", message);
-        return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes())));
+        if(pathMatches(requestPath, "/api/auth/me")){
+            ServerHttpResponse response = exchange.getResponse();
+            response.setStatusCode(HttpStatus.FORBIDDEN);
+            response.getHeaders().add("Content-Type", "application/json");
+
+            String body = String.format("{\"success\": false, \"message\": \"%s\"}", message);
+            return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes())));
+        }else{
+            ServerHttpResponse response = exchange.getResponse();
+            response.setStatusCode(HttpStatus.UNAUTHORIZED);
+            response.getHeaders().add("Content-Type", "application/json");
+
+            String body = String.format("{\"success\": false, \"message\": \"%s\"}", message);
+            return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes())));
+        }
+
     }
+
 
     // Método para verificar si una ruta coincide con un patrón (soporta **)
     private boolean pathMatches(String requestPath, String pattern) {
