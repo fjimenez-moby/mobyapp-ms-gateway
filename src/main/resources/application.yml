@@ -1,0 +1,128 @@
+
+server:
+  port: ${GATEWAY_PORT}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${URL_EUREKA}
+  instance:
+    hostname: localhost
+
+spring:
+  config:
+    import: "optional:classpath:/dev.properties"
+  main:
+    web-application-type: reactive
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: login-service
+              uri: lb://ms-login
+              predicates:
+                - Path=/api/auth/**
+            - id: calendar-service
+              uri: lb://ms-calendar
+              predicates:
+                - Path=/api/calendar/**
+            - id: user
+              uri: lb://user
+              predicates:
+              - Path=/user/**
+            - id: project
+              uri: lb://project
+              predicates:
+              - Path=/project/**
+            - id: georef
+              uri: lb://georef
+              predicates:
+              - Path=/locations/**
+            - id: airtable-service
+              uri: http://localhost:3000
+              predicates:
+              - Path=/api/airtable/**
+            - id: news-service
+              uri: lb://ms-news
+              predicates:
+                - Path=/contentful/**
+            - id: news-ws
+              uri: lb://ms-news
+              predicates:
+                  - Path=/ws/**
+            # Drive y Tasks services comentados hasta que estén disponibles
+            # - id: drive-service
+            #   uri: lb://ms-drive
+            #   predicates:
+            #     - Path=/api/drive/**
+            - id: tasks-service
+              uri: lb://ms-tasks
+              predicates:
+                - Path=/api/tasks/**
+          # Define los filtros globales
+          default-filters:
+            - name: CustomAuth
+              args:
+                  excludePaths:
+                    - /api/auth/google/callback
+                    - /api/auth/logout
+                    - /api/auth/debug
+                    - /user/**
+                    - /project/**
+                    - /georef/**
+                    - /api/airtable/**
+                    - /contentful/**
+                    - /ws/**
+           # Poné Dedupe al final (último filtro)
+            - name: DedupeResponseHeader
+              args:
+                    names:
+                      - Access-Control-Allow-Origin
+                      - Access-Control-Allow-Credentials
+                    strategy: RETAIN_FIRST
+          globalcors:
+            cors-configurations:
+              '[/api/**]':
+                allowedOrigins:
+                  - "https://test-api-google.netlify.app"
+                  - "http://localhost:4200"
+                  - "http://localhost:9000"
+                allowedMethods:
+                  - "GET"
+                  - "POST"
+                  - "PUT"
+                  - "DELETE"
+                  - "OPTIONS"
+                allowedHeaders:
+                  - "Content-Type"
+                  - "Authorization"
+                  - "X-Session-Id"
+                  - "X-Requested-With"
+                allowCredentials: true
+              '[/contentful/**]':
+                  allowedOrigins:
+                    - "http://localhost:9000"
+                    - "http://localhost:4200"
+                  allowedMethods: [ GET, OPTIONS ]
+                  allowedHeaders: [ "Content-Type", "Authorization", "X-Requested-With" ]
+                  allowCredentials: true
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      username: ${REDIS_USERNAME}
+      password: ${REDIS_PASSWORD}
+      timeout: 5000ms
+      database: 0
+      ssl:
+        enabled: true
+      url: ${REDIS_URL}
+
+  session:
+    store-type: redis
+    redis:
+      flush-mode: on_save
+      save-mode: on_set_attribute
