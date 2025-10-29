@@ -1,4 +1,3 @@
-
 server:
   port: ${GATEWAY_PORT}
 
@@ -7,7 +6,16 @@ eureka:
     service-url:
       defaultZone: ${URL_EUREKA}
   instance:
-    hostname: localhost
+    hostname: ${SERVICE_HOSTNAME:localhost}
+    prefer-ip-address: false
+    non-secure-port-enabled: false
+    secure-port-enabled: true
+    secure-port: 443
+    home-page-url: https://${SERVICE_HOSTNAME}/
+    status-page-url: https://${SERVICE_HOSTNAME}/actuator/info
+    health-check-url: https://${SERVICE_HOSTNAME}/actuator/health
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
 
 spring:
   config:
@@ -126,3 +134,10 @@ spring:
     redis:
       flush-mode: on_save
       save-mode: on_set_attribute
+
+# Configuracion de Cookies (para OAuth y sesiones)
+# En producción (Railway/HTTPS): cookie.secure=true y cookie.same-site=None
+# En desarrollo (localhost): cookie.secure=false y cookie.same-site=Lax
+cookie:
+  secure: ${COOKIE_SECURE:false}
+  same-site: ${COOKIE_SAME_SITE:Lax}
