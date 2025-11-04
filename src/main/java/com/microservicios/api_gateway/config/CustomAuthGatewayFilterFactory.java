@@ -1,13 +1,13 @@
 package com.microservicios.api_gateway.config;
 
 import com.microservicios.api_gateway.constants.AuthenticationConstants;
+import com.microservicios.api_gateway.util.ErrorResponseBuilder;
 import com.microservicios.api_gateway.util.JsonStringCleaner;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -115,23 +115,10 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
     }
 
     private Mono<Void> unauthorizedResponse(String requestPath, ServerWebExchange exchange, String message) {
-
-        if(pathMatches(requestPath, AuthenticationConstants.ROUTE_AUTH_ME)){
-            ServerHttpResponse response = exchange.getResponse();
-            response.setStatusCode(HttpStatus.FORBIDDEN);
-            response.getHeaders().add("Content-Type", AuthenticationConstants.HEADER_CONTENT_TYPE);
-
-            String body = String.format("{\"success\": false, \"message\": \"%s\"}", message);
-            return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes())));
-        }else{
-            ServerHttpResponse response = exchange.getResponse();
-            response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            response.getHeaders().add("Content-Type", AuthenticationConstants.HEADER_CONTENT_TYPE);
-
-            String body = String.format("{\"success\": false, \"message\": \"%s\"}", message);
-            return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes())));
-        }
-
+        HttpStatus status = pathMatches(requestPath, AuthenticationConstants.ROUTE_AUTH_ME)
+            ? HttpStatus.FORBIDDEN
+            : HttpStatus.UNAUTHORIZED;
+        return ErrorResponseBuilder.buildErrorResponse(exchange.getResponse(), status, message);
     }
 
 
