@@ -77,13 +77,11 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
                                 .flatMap(refreshToken -> {
                                     log.info("Refresh token: {}", refreshToken);
 
-                                    final String finalRefreshToken = refreshToken;
-
                                     ServerWebExchange mutatedExchange = exchange.mutate()
                                             .request(builder -> {
-                                                builder.header(AuthenticationConstants.HEADER_AUTHORIZATION, AuthenticationConstants.HEADER_BEARER_PREFIX + finalAccessToken);
-                                                if (finalRefreshToken != null && !finalRefreshToken.trim().isEmpty()) {
-                                                    builder.header(AuthenticationConstants.HEADER_REFRESH_TOKEN, finalRefreshToken);
+                                                builder.header(AuthenticationConstants.HEADER_AUTHORIZATION, AuthenticationConstants.HEADER_BEARER_PREFIX + accessToken);
+                                                if (refreshToken != null && !refreshToken.trim().isEmpty()) {
+                                                    builder.header(AuthenticationConstants.HEADER_REFRESH_TOKEN, refreshToken);
                                                 }
                                             })
                                             .build();
