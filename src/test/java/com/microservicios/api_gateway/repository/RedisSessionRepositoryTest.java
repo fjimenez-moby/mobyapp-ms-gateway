@@ -20,7 +20,7 @@ class RedisSessionRepositoryTest {
     private ReactiveRedisTemplate<String, String> redisTemplate;
 
     @Mock
-    private ReactiveHashOperations<String, String, Object> hashOperations;
+    private ReactiveHashOperations<String, Object, Object> hashOperations;
 
     private SessionRepository sessionRepository;
 
