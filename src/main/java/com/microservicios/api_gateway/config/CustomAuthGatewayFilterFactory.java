@@ -2,6 +2,7 @@ package com.microservicios.api_gateway.config;
 
 import com.microservicios.api_gateway.constants.AuthenticationConstants;
 import com.microservicios.api_gateway.repository.SessionRepository;
+import com.microservicios.api_gateway.service.TokenValidator;
 import com.microservicios.api_gateway.util.ErrorResponseBuilder;
 import com.microservicios.api_gateway.util.PathMatcher;
 import org.slf4j.Logger;
@@ -22,10 +23,12 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
     private static final Logger log = LoggerFactory.getLogger(CustomAuthGatewayFilterFactory.class);
 
     private final SessionRepository sessionRepository;
+    private final TokenValidator tokenValidator;
 
-    public CustomAuthGatewayFilterFactory(SessionRepository sessionRepository) {
+    public CustomAuthGatewayFilterFactory(SessionRepository sessionRepository, TokenValidator tokenValidator) {
         super(Config.class);
         this.sessionRepository = sessionRepository;
+        this.tokenValidator = tokenValidator;
     }
 
     @Override
@@ -66,7 +69,7 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
             return sessionRepository.getAccessToken(sessionId)
                     .switchIfEmpty(Mono.error(new RuntimeException("AccessToken no encontrado en sesión")))
                     .flatMap(accessToken -> {
-                        if (!isValidAccessToken(accessToken)) {
+                        if (!tokenValidator.isValid(accessToken)) {
                             log.warn("AccessToken no válido en la sesión Redis. Token: {}", accessToken);
                             return unauthorizedResponse(requestPath, exchange, AuthenticationConstants.MSG_TOKEN_INVALID);
                         }
@@ -123,12 +126,6 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
             log.warn("Error al decodificar sessionId: {}", e.getMessage());
             throw new IllegalArgumentException("Invalid session ID encoding", e);
         }
-    }
-
-    private boolean isValidAccessToken(String accessToken) {
-        return accessToken != null &&
-               !accessToken.trim().isEmpty() &&
-               accessToken.startsWith(AuthenticationConstants.GOOGLE_TOKEN_PREFIX);
     }
 
     public record Config(List<String> excludePaths) {
