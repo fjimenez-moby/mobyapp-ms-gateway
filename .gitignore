@@ -32,5 +32,12 @@ build/
 ### VS Code ###
 .vscode/
 
+# Properties
+**/.env
+!**/.env.example
+**/dev.properties
+!**/dev.properties.example
+
 # Carpetas de compilación
 bin/
+**/bin/
