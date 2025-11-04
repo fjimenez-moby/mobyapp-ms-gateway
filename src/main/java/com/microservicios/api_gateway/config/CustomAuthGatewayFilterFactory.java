@@ -3,6 +3,7 @@ package com.microservicios.api_gateway.config;
 import com.microservicios.api_gateway.constants.AuthenticationConstants;
 import com.microservicios.api_gateway.util.ErrorResponseBuilder;
 import com.microservicios.api_gateway.util.JsonStringCleaner;
+import com.microservicios.api_gateway.util.PathMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -37,7 +38,7 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
             // Verificar si la ruta está excluida del filtro de autenticación
             if (config.getExcludePaths() != null) {
                 for (String excludePath : config.getExcludePaths()) {
-                    if (pathMatches(requestPath, excludePath)) {
+                    if (PathMatcher.matches(requestPath, excludePath)) {
                         log.info("Ruta excluida del filtro de autenticación: {}", requestPath);
                         return chain.filter(exchange);
                     }
@@ -116,22 +117,10 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
     }
 
     private Mono<Void> unauthorizedResponse(String requestPath, ServerWebExchange exchange, String message) {
-        HttpStatus status = pathMatches(requestPath, AuthenticationConstants.ROUTE_AUTH_ME)
+        HttpStatus status = PathMatcher.matches(requestPath, AuthenticationConstants.ROUTE_AUTH_ME)
             ? HttpStatus.FORBIDDEN
             : HttpStatus.UNAUTHORIZED;
         return ErrorResponseBuilder.buildErrorResponse(exchange.getResponse(), status, message);
-    }
-
-
-    // Método para verificar si una ruta coincide con un patrón (soporta **)
-    private boolean pathMatches(String requestPath, String pattern) {
-        // Si el patrón termina con /**, verificar si el path empieza con la base
-        if (pattern.endsWith("/**")) {
-            String basePath = pattern.substring(0, pattern.length() - 3);
-            return requestPath.startsWith(basePath);
-        }
-        // Coincidencia exacta
-        return requestPath.equals(pattern);
     }
 
     public static class Config {
