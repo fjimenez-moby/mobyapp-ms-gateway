@@ -1,14 +1,13 @@
 package com.microservicios.api_gateway.config;
 
 import com.microservicios.api_gateway.constants.AuthenticationConstants;
+import com.microservicios.api_gateway.repository.SessionRepository;
 import com.microservicios.api_gateway.util.ErrorResponseBuilder;
-import com.microservicios.api_gateway.util.JsonStringCleaner;
 import com.microservicios.api_gateway.util.PathMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -22,11 +21,11 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
 
     private static final Logger log = LoggerFactory.getLogger(CustomAuthGatewayFilterFactory.class);
 
-    private final ReactiveRedisTemplate<String, String> redisTemplate;
+    private final SessionRepository sessionRepository;
 
-    public CustomAuthGatewayFilterFactory(ReactiveRedisTemplate<String, String> redisTemplate) {
+    public CustomAuthGatewayFilterFactory(SessionRepository sessionRepository) {
         super(Config.class);
-        this.redisTemplate = redisTemplate;
+        this.sessionRepository = sessionRepository;
     }
 
     @Override
@@ -64,28 +63,18 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
                 return unauthorizedResponse(requestPath, exchange, AuthenticationConstants.MSG_SESSION_INVALID);
             }
 
-            // Buscamos en Redis con el prefijo de Spring Session
-            String springSessionKey = AuthenticationConstants.SPRING_SESSION_KEY_PREFIX + sessionId;
-
-            return redisTemplate.opsForHash()
-                    .get(springSessionKey, AuthenticationConstants.SESSION_ATTR_ACCESS_TOKEN)
+            return sessionRepository.getAccessToken(sessionId)
                     .switchIfEmpty(Mono.error(new RuntimeException("AccessToken no encontrado en sesión")))
-                    .flatMap(accessTokenObj -> {
-                        String accessToken = JsonStringCleaner.removeQuotes(accessTokenObj.toString());
-
+                    .flatMap(accessToken -> {
                         if (!isValidAccessToken(accessToken)) {
                             log.warn("AccessToken no válido en la sesión Redis. Token: {}", accessToken);
                             return unauthorizedResponse(requestPath, exchange, AuthenticationConstants.MSG_TOKEN_INVALID);
                         }
 
-                        final String finalAccessToken = accessToken;
-                        log.info("AccessToken limpio extraído: {}", finalAccessToken.length() > 20 ? finalAccessToken.substring(0, 20) + "..." : finalAccessToken);
+                        log.info("AccessToken limpio extraído: {}", accessToken.length() > 20 ? accessToken.substring(0, 20) + "..." : accessToken);
 
-                        return redisTemplate.opsForHash()
-                                .get(springSessionKey, AuthenticationConstants.SESSION_ATTR_REFRESH_TOKEN)
-                                .defaultIfEmpty("")
-                                .flatMap(refreshTokenObj -> {
-                                    String refreshToken = JsonStringCleaner.removeQuotes(refreshTokenObj.toString());
+                        return sessionRepository.getRefreshToken(sessionId)
+                                .flatMap(refreshToken -> {
                                     log.info("Refresh token: {}", refreshToken);
 
                                     final String finalRefreshToken = refreshToken;
