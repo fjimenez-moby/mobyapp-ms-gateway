@@ -50,7 +50,7 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
 
             if (sessionCookie == null) {
                 logger.warning("Petición rechazada: cookie JSESSIONID ausente. Usuario no autenticado.");
-                return unauthorizedResponse(requestPath,exchange, "Sesión no encontrada. Por favor, inicie sesión.");
+                return unauthorizedResponse(requestPath,exchange, AuthenticationConstants.MSG_SESSION_NOT_FOUND);
             }
 
             // Extraemos el sessionId de la cookie (Spring Session lo genera automáticamente)
@@ -64,14 +64,14 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
                 logger.info("SessionId decodificado: " + sessionId);
             } catch (Exception e) {
                 logger.warning("Error al decodificar sessionId: " + e.getMessage());
-                return unauthorizedResponse(requestPath,exchange, "Sesión no válida.");
+                return unauthorizedResponse(requestPath,exchange, AuthenticationConstants.MSG_SESSION_INVALID);
             }
 
             // Buscamos en Redis con el prefijo de Spring Session
-            String springSessionKey = "spring:session:sessions:" + sessionId;
+            String springSessionKey = AuthenticationConstants.SPRING_SESSION_KEY_PREFIX + sessionId;
 
             return redisTemplate.opsForHash()
-                    .get(springSessionKey, "sessionAttr:accessToken")
+                    .get(springSessionKey, AuthenticationConstants.SESSION_ATTR_ACCESS_TOKEN)
                     .switchIfEmpty(Mono.error(new RuntimeException("AccessToken no encontrado en sesión")))
                     .flatMap(accessTokenObj -> {
                         String accessToken = accessTokenObj.toString();
@@ -82,15 +82,15 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
 
                         final String finalAccessToken = accessToken;
 
-                        if (finalAccessToken == null || finalAccessToken.trim().isEmpty() || !finalAccessToken.startsWith("ya29.")) {
+                        if (finalAccessToken == null || finalAccessToken.trim().isEmpty() || !finalAccessToken.startsWith(AuthenticationConstants.GOOGLE_TOKEN_PREFIX)) {
                             logger.warning("AccessToken no válido en la sesión Redis. Token: " + finalAccessToken);
-                            return unauthorizedResponse(requestPath,exchange, "Token de acceso no válido en la sesión.");
+                            return unauthorizedResponse(requestPath,exchange, AuthenticationConstants.MSG_TOKEN_INVALID);
                         }
 
                         logger.info("AccessToken limpio extraído: " + (finalAccessToken.length() > 20 ? finalAccessToken.substring(0, 20) + "..." : finalAccessToken));
 
                         return redisTemplate.opsForHash()
-                                .get(springSessionKey, "sessionAttr:refreshToken")
+                                .get(springSessionKey, AuthenticationConstants.SESSION_ATTR_REFRESH_TOKEN)
                                 .defaultIfEmpty("")
                                 .flatMap(refreshTokenObj -> {
                                     String refreshToken = refreshTokenObj.toString();
@@ -103,9 +103,9 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
 
                                     ServerWebExchange mutatedExchange = exchange.mutate()
                                             .request(builder -> {
-                                                builder.header("Authorization", "Bearer " + finalAccessToken);
+                                                builder.header(AuthenticationConstants.HEADER_AUTHORIZATION, AuthenticationConstants.HEADER_BEARER_PREFIX + finalAccessToken);
                                                 if (finalRefreshToken != null && !finalRefreshToken.trim().isEmpty()) {
-                                                    builder.header("X-Refresh-Token", finalRefreshToken);
+                                                    builder.header(AuthenticationConstants.HEADER_REFRESH_TOKEN, finalRefreshToken);
                                                 }
                                             })
                                             .build();
@@ -116,24 +116,24 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
                     })
                     .onErrorResume(error -> {
                         logger.warning("Error al procesar sesión: " + error.getMessage());
-                        return unauthorizedResponse(requestPath, exchange, "Sesión no encontrada en Redis. Por favor, inicie sesión de nuevo.");
+                        return unauthorizedResponse(requestPath, exchange, AuthenticationConstants.MSG_SESSION_NOT_IN_REDIS);
                     });
         };
     }
 
     private Mono<Void> unauthorizedResponse(String requestPath, ServerWebExchange exchange, String message) {
 
-        if(pathMatches(requestPath, "/api/auth/me")){
+        if(pathMatches(requestPath, AuthenticationConstants.ROUTE_AUTH_ME)){
             ServerHttpResponse response = exchange.getResponse();
             response.setStatusCode(HttpStatus.FORBIDDEN);
-            response.getHeaders().add("Content-Type", "application/json");
+            response.getHeaders().add("Content-Type", AuthenticationConstants.HEADER_CONTENT_TYPE);
 
             String body = String.format("{\"success\": false, \"message\": \"%s\"}", message);
             return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes())));
         }else{
             ServerHttpResponse response = exchange.getResponse();
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            response.getHeaders().add("Content-Type", "application/json");
+            response.getHeaders().add("Content-Type", AuthenticationConstants.HEADER_CONTENT_TYPE);
 
             String body = String.format("{\"success\": false, \"message\": \"%s\"}", message);
             return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes())));
