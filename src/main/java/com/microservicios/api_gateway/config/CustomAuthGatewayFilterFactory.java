@@ -1,5 +1,6 @@
 package com.microservicios.api_gateway.config;
 
+import com.microservicios.api_gateway.constants.AuthenticationConstants;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
@@ -43,7 +44,7 @@ public class CustomAuthGatewayFilterFactory extends AbstractGatewayFilterFactory
 
             //Lee cookie automatica del navegador
             HttpCookie sessionCookie = exchange.getRequest()
-                    .getCookies().getFirst("JSESSIONID");
+                    .getCookies().getFirst(AuthenticationConstants.SESSION_COOKIE_NAME);
 
 
 
