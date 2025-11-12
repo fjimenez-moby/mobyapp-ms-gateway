@@ -17,6 +17,13 @@ public class FallbackRoutes implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         // 1) Si ocurre excepción en la cadena, redirigir
+        String path = exchange.getRequest().getURI().getPath();
+
+        if (path.startsWith("/api/contentful/")) {
+            return chain.filter(exchange);
+        }
+
+
         return chain.filter(exchange)
                 .onErrorResume(ex -> {
                     var resp = exchange.getResponse();

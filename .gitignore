@@ -41,3 +41,4 @@ build/
 # Carpetas de compilación
 bin/
 **/bin/
+FETCH_HEAD

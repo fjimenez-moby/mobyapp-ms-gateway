@@ -56,7 +56,7 @@ spring:
             - id: news-service
               uri: lb://ms-news
               predicates:
-                - Path=/contentful/**
+                - Path=/api/contentful/**
             - id: websocket
               uri: lb://websocket
               predicates:
@@ -82,7 +82,7 @@ spring:
                     - /project/**
                     - /georef/**
                     - /api/airtable/**
-                    - /contentful/**
+                    - /api/contentful/**
                     - /ws/**
            # Poné Dedupe al final (último filtro)
             - name: DedupeResponseHeader
@@ -110,13 +110,6 @@ spring:
                   - "X-Session-Id"
                   - "X-Requested-With"
                 allowCredentials: true
-              '[/contentful/**]':
-                  allowedOrigins:
-                    - "http://localhost:9000"
-                    - "http://localhost:4200"
-                  allowedMethods: [ GET, OPTIONS ]
-                  allowedHeaders: [ "Content-Type", "Authorization", "X-Requested-With" ]
-                  allowCredentials: true
   data:
     redis:
       host: ${REDIS_HOST}
