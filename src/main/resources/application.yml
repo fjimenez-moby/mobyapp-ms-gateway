@@ -40,7 +40,7 @@ spring:
             - id: user
               uri: lb://user
               predicates:
-              - Path=/user/**
+              - Path=/api/user/**
             - id: project
               uri: lb://project
               predicates:
@@ -78,7 +78,7 @@ spring:
                     - /api/auth/google/callback
                     - /api/auth/logout
                     - /api/auth/debug
-                    - /user/**
+                    - /api/user/**
                     - /project/**
                     - /georef/**
                     - /api/airtable/**
