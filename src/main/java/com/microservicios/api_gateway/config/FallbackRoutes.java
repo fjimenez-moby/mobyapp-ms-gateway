@@ -1,4 +1,5 @@
 package com.microservicios.api_gateway.config;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.Ordered;
@@ -12,7 +13,12 @@ import java.net.URI;
 
 @Component
 public class FallbackRoutes implements GlobalFilter, Ordered {
-    private static final URI TARGET = URI.create("http://localhost:9000");
+
+    private final URI target;
+
+    public FallbackRoutes(@Value("${fallback.redirect-url}") String redirectUrl) {
+        this.target = URI.create(redirectUrl);
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -29,7 +35,7 @@ public class FallbackRoutes implements GlobalFilter, Ordered {
                     var resp = exchange.getResponse();
                     if (!resp.isCommitted()) {
                         resp.setStatusCode(HttpStatus.FOUND);
-                        resp.getHeaders().setLocation(TARGET);
+                        resp.getHeaders().setLocation(target);
                         resp.getHeaders().remove("Content-Length");
                         return resp.setComplete();
                     }
@@ -41,7 +47,7 @@ public class FallbackRoutes implements GlobalFilter, Ordered {
                     var sc = resp.getStatusCode();
                     if (!resp.isCommitted() && sc != null && sc.is5xxServerError()) {
                         resp.setStatusCode(HttpStatus.FOUND);
-                        resp.getHeaders().setLocation(TARGET);
+                        resp.getHeaders().setLocation(target);
                         resp.getHeaders().remove("Content-Length");
                         return resp.setComplete();
                     }

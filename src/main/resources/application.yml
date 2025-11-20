@@ -30,7 +30,7 @@ spring:
         webflux:
           routes:
             - id: login-service
-              uri: lb://ms-login
+              uri: lb://MS-LOGIN
               predicates:
                 - Path=/api/auth/**
             - id: calendar-service
@@ -119,7 +119,7 @@ spring:
       timeout: 5000ms
       database: 0
       ssl:
-        enabled: true
+        enabled: false
       url: ${REDIS_URL}
 
   session:
@@ -134,3 +134,14 @@ spring:
 cookie:
   secure: ${COOKIE_SECURE:false}
   same-site: ${COOKIE_SAME_SITE:Lax}
+
+# Fallback and error redirect configuration
+fallback:
+  redirect-url: ${FALLBACK_REDIRECT_URL:http://localhost:9000}
+
+# Logging configuration for debugging
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.reactive: DEBUG
+    org.springframework.cloud.loadbalancer: DEBUG
